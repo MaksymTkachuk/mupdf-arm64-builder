@@ -41,7 +41,7 @@ jobs:
         shell: cmd
         run: |
           cd mupdf
-          python scripts/mupdfwrap.py -b --csharp --platform win32-vs-upgrade all
+          python scripts/mupdfwrap.py -b --csharp all
 
       # 6. Upload compiled DLLs and generated C# bindings as artifacts
       - name: Upload Build Artifacts
@@ -49,6 +49,6 @@ jobs:
         with:
           name: mupdf-csharp-arm64-binaries
           path: |
-            mupdf/build/shared-tesseract-release/
+            mupdf/build/shared-release-x64-py3.11/
             mupdf/platform/csharp/
           if-no-files-found: warn
