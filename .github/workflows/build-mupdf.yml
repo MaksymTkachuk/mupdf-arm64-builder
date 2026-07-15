@@ -41,7 +41,7 @@ jobs:
         shell: cmd
         run: |
           cd mupdf
-          python scripts/mupdfwrap.py -b --csharp all
+          python scripts/mupdfwrap.py -b --csharp --platform win32-vs-upgrade all
 
       # 6. Upload compiled DLLs and generated C# bindings as artifacts
       - name: Upload Build Artifacts
