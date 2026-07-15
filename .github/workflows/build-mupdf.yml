@@ -41,7 +41,7 @@ jobs:
         shell: cmd
         run: |
           cd mupdf
-          python scripts/mupdfwrap.py -d build/shared-tesseract-release --vs-upgrade 1 -b --csharp all
+          python scripts/mupdfwrap.py --vs-upgrade 1 -b --csharp all
 
       # 6. Upload compiled DLLs and generated C# bindings as artifacts
       - name: Upload Build Artifacts
