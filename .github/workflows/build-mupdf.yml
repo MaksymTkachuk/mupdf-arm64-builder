@@ -36,7 +36,7 @@ jobs:
         shell: cmd
         run: |
           cd mupdf
-          python scripts/mupdfwrap.py --venv --vs-upgrade 1 -b --csharp all
+          python scripts/mupdfwrap.py --vs-upgrade 1 -b --csharp all
 
       - name: Stage and verify ARM64 DLLs
         shell: pwsh
