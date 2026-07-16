@@ -23,9 +23,9 @@ jobs:
       - name: Verify ARM64 native package
         shell: pwsh
         run: |
-          $package = "nuget-packages/MuPDF.NativeAssets.Windows.arm64.1.28.0.1.nupkg"
+          $package = "nuget-packages/MuPDF.NativeAssets.Windows.arm64.1.28.0.2.nupkg"
           if (-not (Test-Path $package)) {
-            throw "Missing $package. Copy MuPDF.NativeAssets.Windows.arm64.1.28.0.1.nupkg into nuget-packages/ before running CI."
+            throw "Missing $package. Copy MuPDF.NativeAssets.Windows.arm64.1.28.0.2.nupkg into nuget-packages/ before running CI."
           }
 
       - name: Verify test PDFs
