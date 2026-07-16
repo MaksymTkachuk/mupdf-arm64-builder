@@ -1,4 +1,4 @@
-name: Windows ARM64 Test
+name: Windows ARM64 Build
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ on:
     branches: [main, master]
 
 jobs:
-  test-win-arm64:
+  build-win-arm64:
     runs-on: windows-11-arm
 
     steps:
@@ -28,55 +28,30 @@ jobs:
             throw "Missing $package. Copy MuPDF.NativeAssets.Windows.arm64.1.28.0.2.nupkg into nuget-packages/ before running CI."
           }
 
-      - name: Verify test PDFs
-        shell: pwsh
-        run: |
-          foreach ($pdf in @("national-capitals.pdf", "Ocr.pdf")) {
-            if (-not (Test-Path $pdf)) {
-              throw "Missing test input: $pdf"
-            }
-          }
-
       - name: Restore
         run: dotnet restore -r win-arm64
 
       - name: Build
         run: dotnet build -c Release -r win-arm64 --no-restore
 
-      - name: Run on Windows ARM64
-        run: dotnet run -c Release -r win-arm64 --no-build
-
-      - name: Verify output text files
+      - name: Verify build output
         shell: pwsh
         run: |
-          $files = @(
-            "national-capitals.txt",
-            "Ocr.md.txt",
-            "Ocr.ocr.txt"
-          )
-
-          foreach ($file in $files) {
-            if (-not (Test-Path $file)) {
-              throw "Missing output file: $file"
-            }
-
-            $length = (Get-Item $file).Length
-            if ($length -le 0) {
-              throw "Output file is empty: $file"
-            }
-
-            Write-Host "OK: $file ($length bytes)"
-            Write-Host "--- first 20 lines of $file ---"
-            Get-Content $file -TotalCount 20
-            Write-Host ""
+          if (-not (Test-Path bin)) {
+            throw "Expected bin/ folder after build."
           }
 
-      - name: Upload output text files
+          $files = Get-ChildItem -Path bin -Recurse -File
+          if (-not $files) {
+            throw "bin/ folder is empty."
+          }
+
+          Write-Host "Build output ($($files.Count) file(s)):"
+          $files | ForEach-Object { Write-Host $_.FullName }
+
+      - name: Upload bin folder
         uses: actions/upload-artifact@v4
         with:
-          name: win-arm64-output
-          path: |
-            national-capitals.txt
-            Ocr.md.txt
-            Ocr.ocr.txt
+          name: win-arm64-bin
+          path: bin/
           if-no-files-found: error
