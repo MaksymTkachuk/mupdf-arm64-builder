@@ -14,11 +14,11 @@ namespace Project7
         private static void Main(string[] args)
         {
             TestOcr();
-            TestTable1_();
+            //TestTable1_();
 
             return;
         }
-
+        /*
         private static void TestTable1_()
         {
             string testFilePath = Path.GetFullPath(@"national-capitals.pdf");
@@ -29,21 +29,23 @@ namespace Project7
             Console.WriteLine(md);
             Console.WriteLine($"Saved markdown to {outputPath}");
         }
-
+        */
         private static void TestOcr()
         {
-            PdfExtractor.UseLayout = true;
+            PdfExtractor.UseLayout = false;
             string pdfPath = Path.GetFullPath(@"Ocr.pdf");
             string md = PdfExtractor.ToMarkdown(pdfPath);
             string markdownOutputPath = Path.ChangeExtension(pdfPath, ".md.txt");
             File.WriteAllText(markdownOutputPath, md);
             Console.WriteLine(md);
             Console.WriteLine($"Saved markdown to {markdownOutputPath}");
+            /*
             string text = PdfExtractor.ToText(pdfPath, useOcr: true);
             string textOutputPath = Path.ChangeExtension(pdfPath, ".ocr.txt");
             File.WriteAllText(textOutputPath, text);
             Console.WriteLine(text);
             Console.WriteLine($"Saved OCR text to {textOutputPath}");
+            */
         }
     }
 }
