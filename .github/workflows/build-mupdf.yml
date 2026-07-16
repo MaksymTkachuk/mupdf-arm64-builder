@@ -1,5 +1,15 @@
 name: Build MuPDF C# Bindings (ARM64)
 
+# Based on:
+# https://mupdf.readthedocs.io/en/latest/reference/cxx-and-derived-bindings.html
+#
+# Official Windows C# script:
+#   py -m venv pylocal
+#   .\pylocal\Scripts\activate
+#   python -m pip install --upgrade pip
+#   pip install libclang swig setuptools
+#   cd mupdf && python scripts/mupdfwrap.py -b --csharp all
+
 on:
   push:
     branches: [ "main", "master" ]
@@ -9,13 +19,12 @@ on:
 
 jobs:
   build-bindings:
-    # Windows 11 ARM64 with Visual Studio Enterprise 2022.
     runs-on: windows-11-arm
 
     steps:
       - name: Clone MuPDF master
         run: |
-          git clone --recursive git://git.ghostscript.com/mupdf.git
+          git clone --branch master --recursive --depth 1 --shallow-submodules https://github.com/ArtifexSoftware/mupdf.git
 
       - name: Set up Python (ARM64)
         uses: actions/setup-python@v5
@@ -29,14 +38,82 @@ jobs:
           arch: arm64
           vsversion: 2022
 
-      # --venv makes mupdfwrap create its wrap venv and install
-      # setuptools/libclang/swig there. Without it, autovenv only
-      # installs pipcl and then fails with "libclang does not appear to be installed".
-      - name: Build C# bindings
-        shell: cmd
+      - name: Create venv and install libclang/swig/setuptools
+        shell: pwsh
         run: |
-          cd mupdf
-          python scripts/mupdfwrap.py --vs-upgrade 1 -b --csharp all
+          python -m venv pylocal
+          & .\pylocal\Scripts\python.exe -m pip install --upgrade pip
+          & .\pylocal\Scripts\python.exe -m pip install libclang swig setuptools pipcl
+          & .\pylocal\Scripts\python.exe -c "import clang.cindex; print('clang OK:', clang.cindex.__file__)"
+
+      # mupdfcpp.vcxproj CustomBuildStep runs:
+      #   python scripts\mupdfwrap.py --venv -b 0
+      # That nested --venv recreates the wrap venv while python.exe is locked.
+      # Point the custom step at our pylocal python and drop --venv.
+      - name: Patch VS custom build steps to use pylocal Python
+        shell: pwsh
+        run: |
+          $python = (Resolve-Path ".\pylocal\Scripts\python.exe").Path
+          $replacement = "`"$python`" scripts\mupdfwrap.py -b 0"
+          Write-Host "Custom build replacement: $replacement"
+
+          function Patch-Projects([string]$root) {
+            if (-not (Test-Path $root)) { return 0 }
+            $count = 0
+            Get-ChildItem -Path $root -Recurse -Include *.vcxproj,*.vcxproj.user,*.props,*.targets |
+              ForEach-Object {
+                $text = Get-Content $_.FullName -Raw
+                if ($text -match 'mupdfwrap\.py --venv -b 0') {
+                  $updated = $text -replace 'python scripts\\mupdfwrap\.py --venv -b 0', $replacement
+                  $updated = $updated -replace 'python scripts/mupdfwrap\.py --venv -b 0', $replacement
+                  Set-Content -Path $_.FullName -Value $updated -NoNewline
+                  Write-Host "Patched $($_.FullName)"
+                  $count++
+                }
+              }
+            return $count
+          }
+
+          $patched = Patch-Projects "mupdf/platform/win32"
+          if ($patched -eq 0) {
+            throw "Did not find mupdfwrap.py --venv -b 0 in platform/win32."
+          }
+
+      - name: Generate C++ bindings
+        shell: pwsh
+        run: |
+          Set-Location mupdf
+          & ..\pylocal\Scripts\python.exe scripts\mupdfwrap.py --vs-upgrade 1 -b 0
+
+      - name: Re-patch upgraded VS projects
+        shell: pwsh
+        run: |
+          $python = (Resolve-Path ".\pylocal\Scripts\python.exe").Path
+          $replacement = "`"$python`" scripts\mupdfwrap.py -b 0"
+          $root = "mupdf/platform/win32-vs-upgrade"
+          if (-not (Test-Path $root)) {
+            Write-Host "No win32-vs-upgrade directory; skipping."
+            return
+          }
+          $patched = 0
+          Get-ChildItem -Path $root -Recurse -Include *.vcxproj,*.vcxproj.user,*.props,*.targets |
+            ForEach-Object {
+              $text = Get-Content $_.FullName -Raw
+              if ($text -match 'mupdfwrap\.py --venv -b 0') {
+                $updated = $text -replace 'python scripts\\mupdfwrap\.py --venv -b 0', $replacement
+                $updated = $updated -replace 'python scripts/mupdfwrap\.py --venv -b 0', $replacement
+                Set-Content -Path $_.FullName -Value $updated -NoNewline
+                Write-Host "Patched $($_.FullName)"
+                $patched++
+              }
+            }
+          Write-Host "Patched $patched upgraded project file(s)."
+
+      - name: Build C# bindings
+        shell: pwsh
+        run: |
+          Set-Location mupdf
+          & ..\pylocal\Scripts\python.exe scripts\mupdfwrap.py --vs-upgrade 1 -b --csharp all
 
       - name: Stage and verify ARM64 DLLs
         shell: pwsh
