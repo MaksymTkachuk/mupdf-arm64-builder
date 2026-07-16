@@ -1,0 +1,82 @@
+name: Windows ARM64 Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test-win-arm64:
+    runs-on: windows-11-arm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Verify ARM64 native package
+        shell: pwsh
+        run: |
+          $package = "nuget-packages/MuPDF.NativeAssets.Windows.arm64.1.28.0.1.nupkg"
+          if (-not (Test-Path $package)) {
+            throw "Missing $package. Copy MuPDF.NativeAssets.Windows.arm64.1.28.0.1.nupkg into nuget-packages/ before running CI."
+          }
+
+      - name: Verify test PDFs
+        shell: pwsh
+        run: |
+          foreach ($pdf in @("national-capitals.pdf", "Ocr.pdf")) {
+            if (-not (Test-Path $pdf)) {
+              throw "Missing test input: $pdf"
+            }
+          }
+
+      - name: Restore
+        run: dotnet restore -r win-arm64
+
+      - name: Build
+        run: dotnet build -c Release -r win-arm64 --no-restore
+
+      - name: Run on Windows ARM64
+        run: dotnet run -c Release -r win-arm64 --no-build
+
+      - name: Verify output text files
+        shell: pwsh
+        run: |
+          $files = @(
+            "national-capitals.txt",
+            "Ocr.md.txt",
+            "Ocr.ocr.txt"
+          )
+
+          foreach ($file in $files) {
+            if (-not (Test-Path $file)) {
+              throw "Missing output file: $file"
+            }
+
+            $length = (Get-Item $file).Length
+            if ($length -le 0) {
+              throw "Output file is empty: $file"
+            }
+
+            Write-Host "OK: $file ($length bytes)"
+            Write-Host "--- first 20 lines of $file ---"
+            Get-Content $file -TotalCount 20
+            Write-Host ""
+          }
+
+      - name: Upload output text files
+        uses: actions/upload-artifact@v4
+        with:
+          name: win-arm64-output
+          path: |
+            national-capitals.txt
+            Ocr.md.txt
+            Ocr.ocr.txt
+          if-no-files-found: error
