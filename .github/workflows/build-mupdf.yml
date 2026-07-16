@@ -5,50 +5,84 @@ on:
     branches: [ "main", "master" ]
   pull_request:
     branches: [ "main", "master" ]
-  workflow_dispatch: # Enables a manual trigger button on GitHub
+  workflow_dispatch:
 
 jobs:
   build-bindings:
-    runs-on: windows-11-arm  # Native Windows ARM64 runner
+    # Windows 11 ARM64 with Visual Studio Enterprise 2022.
+    runs-on: windows-11-arm
 
     steps:
-      # 1. Clone MuPDF version 1.28.0 recursively
-      - name: Clone MuPDF
+      - name: Clone MuPDF master
         run: |
-          git clone --recursive git://git.ghostscript.com/mupdf.git
+          git clone --branch master --recursive --depth 1 --shallow-submodules https://github.com/ArtifexSoftware/mupdf.git
 
-      # 2. Set up native ARM64 Python environment
-      - name: Set up Python
+      - name: Set up Python (ARM64)
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           architecture: 'arm64'
 
-      # 3. Upgrade Pip and install the required dependencies (libclang, swig, setuptools)
-      - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install libclang swig setuptools
-
-      # 4. Set up MSVC (Visual Studio 2022) Native ARM64 compiler paths
-      - name: Configure Developer Command Prompt
+      - name: Configure VS2022 ARM64 toolchain
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: arm64
+          vsversion: 2022
 
-      # 5. Build C# wrapper bindings using your exact build command
-      - name: Run Build Script
+      # --venv makes mupdfwrap create its wrap venv and install
+      # setuptools/libclang/swig there. Without it, autovenv only
+      # installs pipcl and then fails with "libclang does not appear to be installed".
+      - name: Build C# bindings
         shell: cmd
         run: |
           cd mupdf
-          python scripts/mupdfwrap.py --vs-upgrade 1 -b --csharp all
+          python scripts/mupdfwrap.py --venv --vs-upgrade 1 -b --csharp all
 
-      # 6. Upload compiled DLLs and generated C# bindings as artifacts
-      - name: Upload Build Artifacts
+      - name: Stage and verify ARM64 DLLs
+        shell: pwsh
+        run: |
+          function Get-PeArch([string]$path) {
+            $bytes = [System.IO.File]::ReadAllBytes($path)
+            $peOffset = [BitConverter]::ToInt32($bytes, 0x3C)
+            $machine = [BitConverter]::ToUInt16($bytes, $peOffset + 4)
+            switch ($machine) {
+              0x014c { 'x86' }
+              0x8664 { 'x64' }
+              0xAA64 { 'ARM64' }
+              default { "Unknown(0x$($machine.ToString('X')))" }
+            }
+          }
+
+          $candidates = @(
+            Get-ChildItem -Path "mupdf/build" -Recurse -Filter "mupdfcsharp.dll" -ErrorAction SilentlyContinue
+          )
+          if (-not $candidates) {
+            throw "mupdfcsharp.dll was not produced under mupdf/build."
+          }
+
+          $csharp = $candidates | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          $dir = $csharp.Directory.FullName
+          $cpp = Join-Path $dir "mupdfcpp64.dll"
+          if (-not (Test-Path $cpp)) {
+            throw "Expected mupdfcpp64.dll next to $($csharp.FullName)"
+          }
+
+          Write-Host "Found build output in: $dir"
+          New-Item -ItemType Directory -Force -Path "artifacts/win-arm64" | Out-Null
+          Copy-Item $csharp.FullName "artifacts/win-arm64/mupdfcsharp.dll" -Force
+          Copy-Item $cpp "artifacts/win-arm64/mupdfcpp64.dll" -Force
+
+          foreach ($dll in @("artifacts/win-arm64/mupdfcsharp.dll", "artifacts/win-arm64/mupdfcpp64.dll")) {
+            $arch = Get-PeArch $dll
+            Write-Host "$(Split-Path $dll -Leaf): $arch"
+            if ($arch -ne 'ARM64') {
+              throw "$dll is $arch, not ARM64. mupdfwrap still built the wrong VS platform."
+            }
+          }
+
+      - name: Upload ARM64 native DLLs
         uses: actions/upload-artifact@v4
         with:
-          name: mupdf-csharp-arm64-binaries
-          path: |
-            mupdf/build/shared-release-x64-py3.11/
-            mupdf/platform/csharp/
-          if-no-files-found: warn
+          name: mupdf-csharp-win-arm64
+          path: artifacts/win-arm64/
+          if-no-files-found: error
