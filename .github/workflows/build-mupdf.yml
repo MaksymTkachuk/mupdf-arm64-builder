@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Clone MuPDF master
         run: |
-          git clone --branch master --recursive --depth 1 --shallow-submodules https://github.com/ArtifexSoftware/mupdf.git
+          git clone --recursive git://git.ghostscript.com/mupdf.git
 
       - name: Set up Python (ARM64)
         uses: actions/setup-python@v5
