@@ -1,5 +1,5 @@
 ﻿using MuPDF.NET;
-using PDF4LLM;
+//using PDF4LLM;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -13,10 +13,39 @@ namespace Project7
     {
         private static void Main(string[] args)
         {
-            TestOcr();
+            //TestOcr();
             //TestTable1_();
+            TestHelloWorldToNewDocument();
 
             return;
+        }
+
+        private static void TestHelloWorldToNewDocument()
+        {
+            /////Console.WriteLine("\n=== TestHelloWorldToNewDocument =======================");
+            Document doc = new Document();
+            Page page = doc.NewPage();
+
+            //{ "helv", "Helvetica" },
+            //{ "heit", "Helvetica-Oblique" },
+            //{ "hebo", "Helvetica-Bold" },
+            //{ "hebi", "Helvetica-BoldOblique" },
+            //{ "cour", "Courier" },
+            //{ "cobo", "Courier-Bold" },
+            //{ "cobi", "Courier-BoldOblique" },
+            //{ "tiro", "Times-Roman" },
+            //{ "tibo", "Times-Bold" },
+            //{ "tiit", "Times-Italic" },
+            //{ "tibi", "Times-BoldItalic" },
+            //{ "symb", "Symbol" },
+            //{ "zadb", "ZapfDingbats" }
+            MuPDF.NET.TextWriter writer = new MuPDF.NET.TextWriter(page.Rect);
+            var ret = writer.FillTextbox(page.Rect, "Hello World!", new MuPDF.NET.Font(fontName: "helv"), rtl: false);
+            writer.WriteText(page);
+            doc.Save("text.pdf", pretty: 1);
+            doc.Close();
+
+            ///////Console.WriteLine($"Text written to 'text.pdf' in: {page.Rect}");
         }
         /*
         private static void TestTable1_()
@@ -29,7 +58,7 @@ namespace Project7
             Console.WriteLine(md);
             Console.WriteLine($"Saved markdown to {outputPath}");
         }
-        */
+        
         private static void TestOcr()
         {
             PdfExtractor.UseLayout = false;
@@ -47,5 +76,6 @@ namespace Project7
             Console.WriteLine($"Saved OCR text to {textOutputPath}");
             */
         }
+        */
     }
 }

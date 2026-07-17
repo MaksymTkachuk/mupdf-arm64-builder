@@ -10,8 +10,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="PDF4LLM" Version="1.28.0.3" />
-    <PackageReference Include="RapidOcrNet" Version="2.0.0" />
+    <PackageReference Include="MuPDF.NET" Version="3.28.1.4" />
+    <!-- <PackageReference Include="PDF4LLM" Version="1.28.0.3" /> -->
+    <!-- <PackageReference Include="RapidOcrNet" Version="2.0.0" /> -->
   </ItemGroup>
 
 </Project>
