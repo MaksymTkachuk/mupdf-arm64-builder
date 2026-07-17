@@ -68,13 +68,12 @@ namespace Project7
             File.WriteAllText(markdownOutputPath, md);
             Console.WriteLine(md);
             Console.WriteLine($"Saved markdown to {markdownOutputPath}");
-            /*
+
             string text = PdfExtractor.ToText(pdfPath, useOcr: true);
             string textOutputPath = Path.ChangeExtension(pdfPath, ".ocr.txt");
             File.WriteAllText(textOutputPath, text);
             Console.WriteLine(text);
             Console.WriteLine($"Saved OCR text to {textOutputPath}");
-            */
         }
         */
     }
