@@ -22,9 +22,11 @@ jobs:
     runs-on: windows-11-arm
 
     steps:
-      - name: Clone MuPDF master
+      # Must match the MuPDF version MuPDF.NET 3.28.1.4 was built against (1.28.0).
+      # Building from master produces ABI-incompatible DLLs that crash with 0xC0000005.
+      - name: Clone MuPDF 1.28.0
         run: |
-          git clone --branch master --recursive --depth 1 --shallow-submodules https://github.com/ArtifexSoftware/mupdf.git
+          git clone --branch 1.28.0 --recursive --depth 1 --shallow-submodules https://github.com/ArtifexSoftware/mupdf.git
 
       - name: Set up Python (ARM64)
         uses: actions/setup-python@v5
